@@ -156,23 +156,20 @@ if user_input or uploaded_photo:
         st.error("Please add your Groq API key in secrets or sidebar.")
     else:
         # Prepare User UI display
-        img_obj = Image.open(uploaded_photo) if uploaded_photo else None
-        user_msg = {"role": "user", "content": user_input if user_input else "What can I cook with these ingredients?", "image": img_obj}
-        st.session_state.messages.append(user_msg)
-        
-        with st.chat_message("user"):
-            if img_obj:
-                st.image(img_obj, width=260)
-            if user_input:
-                st.markdown(user_input)
+        available_models = [m.id for m in client.models.list().data]
 
-        # Generate Response from Groq
-        with st.chat_message("assistant"):
-            with st.spinner("Chef AI is cooking up recipes..."):
-                try:
-                    client = Groq(api_key=api_key)
-                    
-                    prompt_text = f"""
+        if img_obj:
+            vision_candidates = [m for m in available_models if "vision" in m]
+            selected_model = vision_candidates[0] if vision_candidates else available_models[0]
+        else:
+            selected_model = "llama-3.3-70b-versatile" if "llama-3.3-70b-versatile" in available_models else available_models[0]
+        
+        response = client.chat.completions.create(
+            model=selected_model,
+            messages=[{"role": "user", "content": content_payload}],
+            response_format={"type": "json_object"},
+            temperature=0.3
+        )
                     You are an expert chef. Analyze the user request, image (if provided), and cookbook context.
                     Generate 3 distinct recipes.
                     
