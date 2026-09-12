@@ -206,7 +206,7 @@ if user_input or uploaded_photo:
                     content_payload.append({"type": "text", "text": prompt_text})
 
                     response = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile" if img_obj else "llama-3.3-70b-versatile"
+                        model="llama-3.2-90b-vision-preview" if img_obj else "llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": content_payload}],
                         response_format={"type": "json_object"},
                         temperature=0.3
