@@ -1,19 +1,18 @@
-# 🍳 Fridge2Feast AI
+# 🍳 Fridge2Feast AI (Groq Edition)
 
-Fridge2Feast AI is an interactive web application that converts leftover ingredients into tailored recipes using Google's **Gemini 2.5 Flash** vision model and **Streamlit**.
+Fridge2Feast AI is an interactive web application that converts leftover ingredients into tailored recipes using **Groq AI** models and **Streamlit**.
 
 ## ✨ Key Features
 - **Visual Food Detection:** Upload a photo of your open fridge or food pantry to automatically identify items.
-- **Recipe Customization:** Filter meal suggestions by dietary restrictions (Vegan, Keto, Gluten-Free) and skill level.
+- **Ultra-Fast Inference:** Powered by Groq's high-speed Llama models.
 - **RAG Knowledge Grounding:** Upload custom PDF cookbooks to prioritize specific recipes.
-- **Structured Output:** Guaranteed clean step-by-step instructions powered by Pydantic JSON schemas.
 
 ---
 
-## 🚀 Quickstart (Local Development)
+## 🌐 Deploy to Streamlit Community Cloud
 
-### 1. Clone Repository & Install Dependencies
-```bash
-git clone [https://github.com/your-username/fridge2feast-ai.git](https://github.com/your-username/fridge2feast-ai.git)
-cd fridge2feast-ai
-pip install -r requirements.txt
+1. Push your repository to **GitHub**.
+2. Visit [share.streamlit.io](https://share.streamlit.io) and select your repository (`app.py`).
+3. Under **Advanced Settings > Secrets**, paste:
+   ```toml
+   GROQ_API_KEY = "gsk_your_groq_api_key_here"
