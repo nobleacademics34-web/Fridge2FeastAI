@@ -71,13 +71,11 @@ st.html("""
     }
 
     /* --- INTEGRATED PIN ICON INSIDE SEARCH BAR --- */
-    /* Container positioning wrapper */
     div[data-testid="stColumn"]:has(div[data-testid="stFileUploader"]) {
         position: relative !important;
         z-index: 999 !important;
     }
 
-    /* Shift chat input container relative position and add left margin for icon */
     div[data-testid="stChatInput"] {
         position: relative !important;
     }
@@ -86,7 +84,6 @@ st.html("""
         padding-left: 48px !important;
     }
 
-    /* Overlay file uploader over left edge of input bar */
     div[data-testid="stFileUploader"] {
         position: absolute !important;
         left: 12px !important;
@@ -155,6 +152,23 @@ def encode_image_to_base64(image: Image.Image) -> str:
         image = image.convert("RGB")
     image.save(buffered, format="JPEG")
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+def get_active_groq_model(client: Groq, vision_required: bool = False) -> str:
+    """Dynamically queries available models to prevent 404/decommission errors."""
+    try:
+        available_models = [m.id for m in client.models.list().data]
+        if vision_required:
+            vision_models = [m for m in available_models if "vision" in m.lower()]
+            if vision_models:
+                return vision_models[0]
+            return "llama-3.2-11b-vision-instruct"
+        else:
+            text_models = [m for m in available_models if "llama" in m.lower() and "vision" not in m.lower()]
+            if text_models:
+                return text_models[0]
+            return "llama-3.1-70b-versatile"
+    except Exception:
+        return "llama-3.2-11b-vision-instruct" if vision_required else "llama-3.1-70b-versatile"
 
 # --- 4. Sidebar ---
 with st.sidebar:
@@ -268,15 +282,10 @@ if user_input or uploaded_photo:
                         f'    }}\n  ]\n}}'
                     )
 
-                    # Dynamic Vision Model Resolution
+                    # Dynamic Resolution of Active Groq Model Endpoint
+                    selected_model = get_active_groq_model(client, vision_required=bool(img_obj))
+
                     if img_obj:
-                        active_models = [m.id for m in client.models.list().data]
-                        vision_models = [
-                            m for m in active_models 
-                            if "vision" in m and "preview" not in m
-                        ]
-                        selected_model = vision_models[0] if vision_models else "llama-3.2-90b-vision-instruct"
-                        
                         base64_image = encode_image_to_base64(img_obj)
                         content_payload = [
                             {
@@ -289,7 +298,6 @@ if user_input or uploaded_photo:
                             }
                         ]
                     else:
-                        selected_model = "llama-3.3-70b-versatile"
                         content_payload = prompt_text
 
                     response = client.chat.completions.create(
