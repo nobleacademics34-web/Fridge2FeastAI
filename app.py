@@ -17,14 +17,13 @@ st.set_page_config(
 # --- 2. Custom CSS (Theme: Warm Beige & Animated Kitchen Doodles) ---
 st.html("""
     <style>
-    /* Google Font Import */
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    /* 1. Background Canvas with Subtle Animated Kitchen Doodles */
+    /* Background Canvas with Animated Kitchen Doodles */
     .stAppViewContainer {
         background-color: #F5EFEB !important;
         background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23A06C52' fill-opacity='0.08'%3E%3Cpath d='M10 15a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm35 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm20-10a4 4 0 1 1 8 0 4 4 0 0 1-8 0zM15 50a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm40 10a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm-20 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'/%3E%3Cpath d='M30 25c2 0 3-1 3-3s-1-3-3-3-3 1-3 3 1 3 3 3zm25 20c2.5 0 4-1.5 4-4s-1.5-4-4-4-4 1.5-4 4 1.5 4 4 4zM10 70c2 0 3-1 3-3s-1-3-3-3-3 1-3 3 1 3 3 3z'/%3E%3C/g%3E%3C/svg%3E");
@@ -36,20 +35,18 @@ st.html("""
         100% { background-position: 500px 500px; }
     }
 
-    /* Page container bounds */
     .block-container {
         padding-top: 2rem !important;
         padding-bottom: 7rem !important;
         max-width: 880px !important;
     }
 
-    /* 2. Sidebar Styling */
     section[data-testid="stSidebar"] {
         background-color: #EDE3DA !important;
         border-right: 1px solid #E2D5C7 !important;
     }
 
-    /* 3. User Chat Bubble (Terracotta Accent) */
+    /* User Chat Message Styling */
     div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) {
         flex-direction: row-reverse !important;
         background: linear-gradient(135deg, #D97745 0%, #C86D3B 100%) !important;
@@ -60,11 +57,8 @@ st.html("""
         box-shadow: 0 4px 12px rgba(217, 119, 69, 0.15) !important;
         transition: transform 0.2s ease;
     }
-    div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]):hover {
-        transform: translateY(-2px);
-    }
 
-    /* 4. Assistant Chat Bubble (Soft Cream Card) */
+    /* Assistant Chat Message Styling */
     div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from assistant"]) {
         background-color: #FFFFFF !important;
         color: #2D2522 !important;
@@ -75,27 +69,7 @@ st.html("""
         box-shadow: 0 4px 15px rgba(160, 108, 82, 0.06) !important;
         transition: transform 0.2s ease;
     }
-    div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from assistant"]):hover {
-        transform: translateY(-2px);
-    }
 
-    /* 5. Custom Upload + Chat Input Container */
-    .chat-input-wrapper {
-        background-color: #FFFFFF;
-        border: 1.5px solid #E8DEC8;
-        border-radius: 16px;
-        padding: 8px 12px;
-        box-shadow: 0 4px 20px rgba(160, 108, 82, 0.08);
-        transition: border-color 0.2s ease;
-    }
-    .chat-input-wrapper:focus-within {
-        border-color: #D97745;
-    }
-
-    /* Hide standard borders on nested Streamlit widgets inside our bar */
-    div[data-testid="stFileUploader"] {
-        padding: 0 !important;
-    }
     div[data-testid="stFileUploader"] section {
         padding: 4px 8px !important;
         background: #F8F4EE !important;
@@ -103,7 +77,6 @@ st.html("""
         border-radius: 10px !important;
     }
 
-    /* Tab styling override */
     button[data-baseweb="tab"] {
         color: #7A6258 !important;
     }
@@ -116,7 +89,7 @@ st.html("""
 """)
 
 st.title("🍳 Fridge2Feast AI")
-st.caption("Your culinary companion! Type your ingredients or attach a photo right in the input bar.")
+st.caption("Your culinary companion! Type your ingredients or attach a photo below.")
 
 # --- 3. Schema & Helpers ---
 class Recipe(BaseModel):
@@ -163,7 +136,7 @@ with st.sidebar:
         except Exception as e:
             st.error(f"Error reading PDF: {e}")
 
-# --- 5. Chat History Render ---
+# --- 5. Session State & Chat History ---
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {
@@ -172,6 +145,7 @@ if "messages" not in st.session_state:
         }
     ]
 
+# Display past messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if "image" in msg and msg["image"]:
@@ -201,27 +175,117 @@ for msg in st.session_state.messages:
                         for step_num, s in enumerate(r.get("instructions", []), 1):
                             st.write(f"**{step_num}.** {s}")
 
-# --- 6. Integrated Bar (Upload Photo + Chat Input) ---
-# To keep attachment close to input, we combine an upload widget alongside the chat input.
-with st.container():
-    col_upload, col_input = st.columns([1, 4])
-    
-    with col_upload:
-        uploaded_photo = st.file_uploader("📷 Photo", type=["jpg", "jpeg", "png"], key="inline_photo", label_visibility="collapsed")
-    
-    with col_input:
-        user_input = st.chat_input("Ask for a recipe or list your ingredients...")
+# --- 6. Input Section (Integrated Bar) ---
+col_upload, col_input = st.columns([1, 4])
+with col_upload:
+    uploaded_photo = st.file_uploader("📷 Photo", type=["jpg", "jpeg", "png"], key="chat_photo", label_visibility="collapsed")
+with col_input:
+    user_input = st.chat_input("Ask for a recipe or list your ingredients...")
 
+# Process Input
 if user_input or uploaded_photo:
     if not api_key:
         st.error("Please add your Groq API key in secrets or sidebar.")
     else:
         img_obj = Image.open(uploaded_photo) if uploaded_photo else None
+        input_text = user_input if user_input else "What recipes can I make with these ingredients?"
         
-        # Avoid running empty prompt if only photo uploaded without text
-        prompt_text_user = user_input if user_input else "What recipes can I make with these ingredients?"
-        
-        user_msg = {"role": "user", "content": prompt_text_user, "image": img_obj}
+        # 1. Save user prompt to state and render it
+        user_msg = {"role": "user", "content": input_text, "image": img_obj}
         st.session_state.messages.append(user_msg)
         
-        st.rerun()
+        with st.chat_message("user"):
+            if img_obj:
+                st.image(img_obj, width=240)
+            st.markdown(input_text)
+
+        # 2. Assistant Response Processing
+        with st.chat_message("assistant"):
+            with st.spinner("Chef AI is cooking up recipes..."):
+                try:
+                    client = Groq(api_key=api_key)
+                    
+                    prompt_text = (
+                        f"You are an expert chef. Analyze the request, optional image, and cookbook context.\n"
+                        f"Generate 3 distinct recipes.\n\n"
+                        f"User Request: {input_text}\n"
+                        f"Dietary Restrictions: {', '.join(dietary_pref) if dietary_pref else 'None'}\n"
+                        f"Skill Level: {skill_level}\n"
+                        f"Cookbook Context: {pdf_text_context[:3000] if pdf_text_context else 'None'}\n\n"
+                        f"Return ONLY valid JSON with structure:\n"
+                        f'{{\n  "recipes": [\n    {{\n'
+                        f'      "title": "Recipe Name",\n'
+                        f'      "cook_time": "20 mins",\n'
+                        f'      "difficulty": "Easy",\n'
+                        f'      "ingredients_used": ["Item 1"],\n'
+                        f'      "missing_pantry_items": ["Salt"],\n'
+                        f'      "instructions": ["Step 1..."]\n'
+                        f'    }}\n  ]\n}}'
+                    )
+
+                    # Explicitly target compatible vision or text models based on whether an image exists
+                    if img_obj:
+                        selected_model = "llama-3.2-11b-vision-preview"
+                        base64_image = encode_image_to_base64(img_obj)
+                        content_payload = [
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                            },
+                            {
+                                "type": "text",
+                                "text": prompt_text
+                            }
+                        ]
+                    else:
+                        selected_model = "llama-3.3-70b-versatile"
+                        content_payload = prompt_text  # Send string payload directly for pure text requests
+
+                    # API Execution
+                    response = client.chat.completions.create(
+                        model=selected_model,
+                        messages=[{"role": "user", "content": content_payload}],
+                        response_format={"type": "json_object"},
+                        temperature=0.3
+                    )
+
+                    raw_json = response.choices[0].message.content
+                    parsed_data = json.loads(raw_json)
+                    recipes_data = parsed_data.get("recipes", [parsed_data])
+
+                    assistant_text = "Here are 3 custom recipes I created for you based on your request:"
+                    st.markdown(assistant_text)
+
+                    # Display formatted tabs directly
+                    tabs = st.tabs([f"Option {i+1}: {r.get('title', 'Recipe')}" for i, r in enumerate(recipes_data)])
+                    for idx, tab in enumerate(tabs):
+                        r = recipes_data[idx]
+                        with tab:
+                            m1, m2, m3 = st.columns(3)
+                            m1.metric("⏱ Cook Time", r.get("cook_time", "N/A"))
+                            m2.metric("📊 Difficulty", r.get("difficulty", "N/A"))
+                            m3.metric("🛒 Ingredients", len(r.get("ingredients_used", [])))
+                            
+                            col_a, col_b = st.columns([1, 2])
+                            with col_a:
+                                st.write("##### 🥦 Used Ingredients")
+                                for ing in r.get("ingredients_used", []):
+                                    st.write(f"- {ing}")
+                                if r.get("missing_pantry_items"):
+                                    st.write("##### 🧂 Pantry Items")
+                                    for p in r.get("missing_pantry_items", []):
+                                        st.caption(f"• {p}")
+                            with col_b:
+                                st.write("##### 📖 Steps")
+                                for step_num, s in enumerate(r.get("instructions", []), 1):
+                                    st.write(f"**{step_num}.** {s}")
+
+                    # Save response to history
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": assistant_text,
+                        "recipes": recipes_data
+                    })
+
+                except Exception as e:
+                    st.error(f"Error generating recipes: {e}")
