@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. Custom CSS (Theme: Warm Beige & Integrated Pin Icon inside Chat Bar) ---
+# --- 2. Custom CSS ---
 st.html("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
@@ -70,56 +70,37 @@ st.html("""
         transition: transform 0.2s ease;
     }
 
-    /* --- INTEGRATED PIN ICON INSIDE SEARCH BAR --- */
-    div[data-testid="stColumn"]:has(div[data-testid="stFileUploader"]) {
-        position: relative !important;
-        z-index: 999 !important;
-    }
-
-    div[data-testid="stChatInput"] {
-        position: relative !important;
-    }
-
-    div[data-testid="stChatInput"] textarea {
-        padding-left: 48px !important;
-    }
-
+    /* --- CAMERA ICON BUTTON CSS OVERRIDE --- */
     div[data-testid="stFileUploader"] {
-        position: absolute !important;
-        left: 12px !important;
-        bottom: 8px !important;
-        z-index: 1000 !important;
-        width: 36px !important;
-        min-width: 36px !important;
-        height: 36px !important;
+        width: 50px !important;
+        min-width: 50px !important;
     }
-
     div[data-testid="stFileUploader"] section {
         padding: 0 !important;
-        background: transparent !important;
-        border: none !important;
-        height: 36px !important;
-        width: 36px !important;
+        background: #FFFFFF !important;
+        border: 1.5px solid #E8DEC8 !important;
+        border-radius: 12px !important;
+        height: 48px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         cursor: pointer !important;
+        transition: all 0.2s ease !important;
     }
-
     div[data-testid="stFileUploader"] section:hover {
-        background: rgba(217, 119, 69, 0.1) !important;
-        border-radius: 50% !important;
+        border-color: #D97745 !important;
+        background: #F8F4EE !important;
     }
-
+    /* Hide drag & drop prompt texts */
     div[data-testid="stFileUploader"] section span, 
     div[data-testid="stFileUploader"] section small, 
     div[data-testid="stFileUploader"] section div {
         display: none !important;
     }
-
+    /* Display Camera Icon inside button */
     div[data-testid="stFileUploader"] section::after {
-        content: "📌";
-        font-size: 18px;
+        content: "📷";
+        font-size: 20px;
         display: block;
     }
 
@@ -135,7 +116,7 @@ st.html("""
 """)
 
 st.title("🍳 Fridge2Feast AI")
-st.caption("Your culinary companion! Type your ingredients or click the pin icon inside the chat bar to upload a photo.")
+st.caption("Your culinary companion! Type your ingredients or click the camera icon to upload a photo.")
 
 # --- 3. Schema & Helpers ---
 class Recipe(BaseModel):
@@ -152,23 +133,6 @@ def encode_image_to_base64(image: Image.Image) -> str:
         image = image.convert("RGB")
     image.save(buffered, format="JPEG")
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
-
-def get_active_groq_model(client: Groq, vision_required: bool = False) -> str:
-    """Dynamically queries available models to prevent 404/decommission errors."""
-    try:
-        available_models = [m.id for m in client.models.list().data]
-        if vision_required:
-            vision_models = [m for m in available_models if "vision" in m.lower()]
-            if vision_models:
-                return vision_models[0]
-            return "llama-3.2-11b-vision-instruct"
-        else:
-            text_models = [m for m in available_models if "llama" in m.lower() and "vision" not in m.lower()]
-            if text_models:
-                return text_models[0]
-            return "llama-3.1-70b-versatile"
-    except Exception:
-        return "llama-3.2-11b-vision-instruct" if vision_required else "llama-3.1-70b-versatile"
 
 # --- 4. Sidebar ---
 with st.sidebar:
@@ -204,7 +168,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = [
         {
             "role": "assistant", 
-            "content": "Hello! What ingredients do you have today? Type them below or click the pin icon inside the input bar to attach a photo!"
+            "content": "Hello! What ingredients do you have today? Type them below or attach a photo using the camera icon!"
         }
     ]
 
@@ -237,13 +201,14 @@ for msg in st.session_state.messages:
                         for step_num, s in enumerate(r.get("instructions", []), 1):
                             st.write(f"**{step_num}.** {s}")
 
-# --- 6. Input Section ---
-col_upload, col_input = st.columns([0.01, 0.99])
+# --- 6. Input Section with Compact Camera Icon ---
+col_upload, col_input = st.columns([0.15, 0.85])
 with col_upload:
     uploaded_photo = st.file_uploader("", type=["jpg", "jpeg", "png"], key="chat_photo", label_visibility="collapsed")
 with col_input:
     user_input = st.chat_input("Ask for a recipe or list your ingredients...")
 
+# Process Input
 if user_input or uploaded_photo:
     if not api_key:
         st.error("Please add your Groq API key in secrets or sidebar.")
@@ -282,10 +247,8 @@ if user_input or uploaded_photo:
                         f'    }}\n  ]\n}}'
                     )
 
-                    # Dynamic Resolution of Active Groq Model Endpoint
-                    selected_model = get_active_groq_model(client, vision_required=bool(img_obj))
-
                     if img_obj:
+                        selected_model = "llama-3.2-11b-vision-preview"
                         base64_image = encode_image_to_base64(img_obj)
                         content_payload = [
                             {
@@ -298,6 +261,7 @@ if user_input or uploaded_photo:
                             }
                         ]
                     else:
+                        selected_model = "llama-3.3-70b-versatile"
                         content_payload = prompt_text
 
                     response = client.chat.completions.create(
