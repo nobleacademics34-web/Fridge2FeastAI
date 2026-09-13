@@ -98,17 +98,24 @@ def encode_image_to_base64(image: Image.Image) -> str:
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
 def get_active_groq_model(client: Groq, vision_required: bool = False) -> str:
-    """Queries active models to prevent model_not_found/404 errors."""
+    """Queries active generative chat models to prevent 400/404 classification model errors."""
     try:
         available_models = [m.id for m in client.models.list().data]
+        
+        # Filter out audio, whisper, guard, or embedding/classification models
+        chat_models = [
+            m for m in available_models 
+            if not any(x in m.lower() for x in ["whisper", "guard", "embed", "moderation", "distil"])
+        ]
+
         if vision_required:
-            vision_models = [m for m in available_models if "vision" in m.lower()]
+            vision_models = [m for m in chat_models if "vision" in m.lower() or "llava" in m.lower()]
             return vision_models[0] if vision_models else "llama-3.2-11b-vision-instruct"
         else:
-            text_models = [m for m in available_models if "llama" in m.lower() and "vision" not in m.lower()]
-            return text_models[0] if text_models else "llama-3.1-70b-versatile"
+            text_models = [m for m in chat_models if "llama" in m.lower() or "mixtral" in m.lower() or "gemma" in m.lower()]
+            return text_models[0] if text_models else "llama-3.3-70b-versatile"
     except Exception:
-        return "llama-3.2-11b-vision-instruct" if vision_required else "llama-3.1-70b-versatile"
+        return "llama-3.2-11b-vision-instruct" if vision_required else "llama-3.3-70b-versatile"
 
 # --- 4. Sidebar ---
 with st.sidebar:
@@ -218,6 +225,7 @@ if user_input or uploaded_photo:
                     f'    }}\n  ]\n}}'
                 )
 
+                # Format payload into a single user message
                 if img_obj:
                     base64_image = encode_image_to_base64(img_obj)
                     content_payload = [
@@ -227,6 +235,7 @@ if user_input or uploaded_photo:
                 else:
                     content_payload = prompt_text
 
+                # Strict Single User Message Call
                 response = client.chat.completions.create(
                     model=selected_model,
                     messages=[{"role": "user", "content": content_payload}],
@@ -251,5 +260,5 @@ if user_input or uploaded_photo:
                     "content": f"Sorry, I encountered an error: {e}"
                 })
 
-        # 4. Rerun after storing both User & Assistant messages
+        # 4. Rerun after storing messages
         st.rerun()
