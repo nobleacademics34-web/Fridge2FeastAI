@@ -1,4 +1,4 @@
-# 🍳 Fridge2Feast AI (Groq Edition)
+# 🍳 Fridge2Feast AI
 
 Fridge2Feast AI is an interactive web application that converts leftover ingredients into tailored recipes using **Groq AI** models and **Streamlit**.
 
