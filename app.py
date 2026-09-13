@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. Custom CSS ---
+# --- 2. Custom CSS (Theme: Warm Beige & Animated Kitchen Doodles) ---
 st.html("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
@@ -70,38 +70,11 @@ st.html("""
         transition: transform 0.2s ease;
     }
 
-    /* --- CAMERA ICON BUTTON CSS OVERRIDE --- */
-    div[data-testid="stFileUploader"] {
-        width: 50px !important;
-        min-width: 50px !important;
-    }
     div[data-testid="stFileUploader"] section {
-        padding: 0 !important;
-        background: #FFFFFF !important;
-        border: 1.5px solid #E8DEC8 !important;
-        border-radius: 12px !important;
-        height: 48px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease !important;
-    }
-    div[data-testid="stFileUploader"] section:hover {
-        border-color: #D97745 !important;
+        padding: 4px 8px !important;
         background: #F8F4EE !important;
-    }
-    /* Hide drag & drop prompt texts */
-    div[data-testid="stFileUploader"] section span, 
-    div[data-testid="stFileUploader"] section small, 
-    div[data-testid="stFileUploader"] section div {
-        display: none !important;
-    }
-    /* Display Camera Icon inside button */
-    div[data-testid="stFileUploader"] section::after {
-        content: "📷";
-        font-size: 20px;
-        display: block;
+        border: 1px dashed #D3C4B3 !important;
+        border-radius: 10px !important;
     }
 
     button[data-baseweb="tab"] {
@@ -116,7 +89,7 @@ st.html("""
 """)
 
 st.title("🍳 Fridge2Feast AI")
-st.caption("Your culinary companion! Type your ingredients or click the camera icon to upload a photo.")
+st.caption("Your culinary companion! Type your ingredients or attach a photo below.")
 
 # --- 3. Schema & Helpers ---
 class Recipe(BaseModel):
@@ -168,10 +141,11 @@ if "messages" not in st.session_state:
     st.session_state.messages = [
         {
             "role": "assistant", 
-            "content": "Hello! What ingredients do you have today? Type them below or attach a photo using the camera icon!"
+            "content": "Hello! What ingredients do you have today? Type them below or attach a photo!"
         }
     ]
 
+# Display past messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if "image" in msg and msg["image"]:
@@ -201,10 +175,10 @@ for msg in st.session_state.messages:
                         for step_num, s in enumerate(r.get("instructions", []), 1):
                             st.write(f"**{step_num}.** {s}")
 
-# --- 6. Input Section with Compact Camera Icon ---
-col_upload, col_input = st.columns([0.15, 0.85])
+# --- 6. Input Section (Integrated Bar) ---
+col_upload, col_input = st.columns([1, 4])
 with col_upload:
-    uploaded_photo = st.file_uploader("", type=["jpg", "jpeg", "png"], key="chat_photo", label_visibility="collapsed")
+    uploaded_photo = st.file_uploader("📷 Photo", type=["jpg", "jpeg", "png"], key="chat_photo", label_visibility="collapsed")
 with col_input:
     user_input = st.chat_input("Ask for a recipe or list your ingredients...")
 
@@ -216,6 +190,7 @@ if user_input or uploaded_photo:
         img_obj = Image.open(uploaded_photo) if uploaded_photo else None
         input_text = user_input if user_input else "What recipes can I make with these ingredients?"
         
+        # 1. Save user prompt to state and render it
         user_msg = {"role": "user", "content": input_text, "image": img_obj}
         st.session_state.messages.append(user_msg)
         
@@ -224,6 +199,7 @@ if user_input or uploaded_photo:
                 st.image(img_obj, width=240)
             st.markdown(input_text)
 
+        # 2. Assistant Response Processing
         with st.chat_message("assistant"):
             with st.spinner("Chef AI is cooking up recipes..."):
                 try:
@@ -247,6 +223,7 @@ if user_input or uploaded_photo:
                         f'    }}\n  ]\n}}'
                     )
 
+                    # Explicitly target compatible vision or text models based on whether an image exists
                     if img_obj:
                         selected_model = "llama-3.2-11b-vision-preview"
                         base64_image = encode_image_to_base64(img_obj)
@@ -262,8 +239,9 @@ if user_input or uploaded_photo:
                         ]
                     else:
                         selected_model = "llama-3.3-70b-versatile"
-                        content_payload = prompt_text
+                        content_payload = prompt_text  # Send string payload directly for pure text requests
 
+                    # API Execution
                     response = client.chat.completions.create(
                         model=selected_model,
                         messages=[{"role": "user", "content": content_payload}],
@@ -278,6 +256,7 @@ if user_input or uploaded_photo:
                     assistant_text = "Here are 3 custom recipes I created for you based on your request:"
                     st.markdown(assistant_text)
 
+                    # Display formatted tabs directly
                     tabs = st.tabs([f"Option {i+1}: {r.get('title', 'Recipe')}" for i, r in enumerate(recipes_data)])
                     for idx, tab in enumerate(tabs):
                         r = recipes_data[idx]
@@ -301,6 +280,7 @@ if user_input or uploaded_photo:
                                 for step_num, s in enumerate(r.get("instructions", []), 1):
                                     st.write(f"**{step_num}.** {s}")
 
+                    # Save response to history
                     st.session_state.messages.append({
                         "role": "assistant",
                         "content": assistant_text,
@@ -309,3 +289,4 @@ if user_input or uploaded_photo:
 
                 except Exception as e:
                     st.error(f"Error generating recipes: {e}")
+                    
