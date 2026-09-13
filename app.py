@@ -7,99 +7,71 @@ from pypdf import PdfReader
 from pydantic import BaseModel, Field
 from groq import Groq
 
-# --- 1. Page Config ---
+# --- 1. Page Config & CSS for Custom Background and Chat Colors ---
 st.set_page_config(
     page_title="Fridge2Feast AI",
     page_icon="🍳",
     layout="wide"
 )
 
-# --- 2. Custom CSS (Theme: Warm Beige & Animated Kitchen Doodles) ---
+# Custom CSS injected into Streamlit
 st.html("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
-
-    html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', sans-serif;
-    }
-
-    /* Background Canvas with Animated Kitchen Doodles */
+    /* 1. App Main Canvas Background (Soft Cream) */
     .stAppViewContainer {
-        background-color: #F5EFEB !important;
-        background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23A06C52' fill-opacity='0.08'%3E%3Cpath d='M10 15a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm35 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm20-10a4 4 0 1 1 8 0 4 4 0 0 1-8 0zM15 50a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm40 10a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm-20 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'/%3E%3Cpath d='M30 25c2 0 3-1 3-3s-1-3-3-3-3 1-3 3 1 3 3 3zm25 20c2.5 0 4-1.5 4-4s-1.5-4-4-4-4 1.5-4 4 1.5 4 4 4zM10 70c2 0 3-1 3-3s-1-3-3-3-3 1-3 3 1 3 3 3z'/%3E%3C/g%3E%3C/svg%3E");
-        animation: floatingDoodles 60s linear infinite;
+        background-color: #FAF8F5 !important;
     }
 
-    @keyframes floatingDoodles {
-        0% { background-position: 0 0; }
-        100% { background-position: 500px 500px; }
-    }
-
+    /* Page container limits */
     .block-container {
-        padding-top: 2rem !important;
-        padding-bottom: 7rem !important;
-        max-width: 880px !important;
+        padding-top: 1.5rem !important;
+        padding-bottom: 5rem !important;
+        max-width: 900px !important;
     }
-
-    section[data-testid="stSidebar"] {
-        background-color: #EDE3DA !important;
-        border-right: 1px solid #E2D5C7 !important;
-    }
-
-    /* User Chat Message Styling */
+    
+    /* 2. Target User Chat Messages (Right-aligned, Warm Sage/Mint Accent) */
     div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) {
         flex-direction: row-reverse !important;
-        background: linear-gradient(135deg, #D97745 0%, #C86D3B 100%) !important;
-        color: #FFFFFF !important;
-        border-radius: 20px 20px 4px 20px !important;
+        background-color: #D8E2DC !important;
+        color: #1F2421 !important;
+        border: 1px solid #C4D3CB !important;
+        border-radius: 18px 18px 2px 18px !important;
         margin-left: auto !important;
         max-width: 80% !important;
-        box-shadow: 0 4px 12px rgba(217, 119, 69, 0.15) !important;
-        transition: transform 0.2s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03) !important;
     }
-
-    /* Assistant Chat Message Styling */
+    
+    /* 3. Target Assistant Chat Messages (Left-aligned, Crisp Card White) */
     div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from assistant"]) {
         background-color: #FFFFFF !important;
-        color: #2D2522 !important;
-        border: 1px solid #E8DEC8 !important;
-        border-radius: 20px 20px 20px 4px !important;
+        color: #2D3142 !important;
+        border: 1px solid #EAE6DF !important;
+        border-radius: 18px 18px 18px 2px !important;
         margin-right: auto !important;
         max-width: 85% !important;
-        box-shadow: 0 4px 15px rgba(160, 108, 82, 0.06) !important;
-        transition: transform 0.2s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03) !important;
     }
-
-    div[data-testid="stFileUploader"] section {
-        padding: 4px 8px !important;
-        background: #F8F4EE !important;
-        border: 1px dashed #D3C4B3 !important;
-        border-radius: 10px !important;
-    }
-
-    button[data-baseweb="tab"] {
-        color: #7A6258 !important;
-    }
-    button[aria-selected="true"] {
-        color: #C86D3B !important;
-        border-bottom-color: #C86D3B !important;
-        font-weight: bold !important;
+    
+    /* Image Preview Styling inside Chat */
+    div[data-testid="stChatMessage"] img {
+        border-radius: 10px;
     }
     </style>
 """)
 
 st.title("🍳 Fridge2Feast AI")
-st.caption("Your culinary companion! Type your ingredients or attach a photo below.")
+st.caption("Chat with your AI Chef! Type your ingredients, upload a fridge photo, or drop a cookbook PDF in the sidebar.")
 
-# --- 3. Schema & Helpers ---
+# --- 2. Pydantic Schema ---
 class Recipe(BaseModel):
     title: str = Field(description="Name of the dish")
-    cook_time: str = Field(description="Estimated preparation and cooking time")
+    cook_time: str = Field(description="Estimated preparation and cooking time (e.g., '25 mins')")
     difficulty: str = Field(description="Skill level required: Easy, Medium, or Hard")
-    ingredients_used: list[str] = Field(description="Ingredients used")
-    missing_pantry_items: list[str] = Field(description="Common pantry staples needed")
-    instructions: list[str] = Field(description="Sequential cooking steps")
+    ingredients_used: list[str] = Field(description="Ingredients detected or provided that are used in this recipe")
+    missing_pantry_items: list[str] = Field(description="Common household items needed (e.g., salt, olive oil)")
+    instructions: list[str] = Field(description="Sequential step-by-step cooking directions")
 
+# Helper function: Convert image to Base64 for Groq Vision
 def encode_image_to_base64(image: Image.Image) -> str:
     buffered = io.BytesIO()
     if image.mode in ("RGBA", "P"):
@@ -107,7 +79,7 @@ def encode_image_to_base64(image: Image.Image) -> str:
     image.save(buffered, format="JPEG")
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-# --- 4. Sidebar ---
+# --- 3. Sidebar (Preferences & Grounding PDF) ---
 with st.sidebar:
     st.header("⚙️ Configuration")
     api_key = st.secrets.get("GROQ_API_KEY", "")
@@ -136,12 +108,12 @@ with st.sidebar:
         except Exception as e:
             st.error(f"Error reading PDF: {e}")
 
-# --- 5. Session State & Chat History ---
+# --- 4. Session State Chat History ---
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {
             "role": "assistant", 
-            "content": "Hello! What ingredients do you have today? Type them below or attach a photo!"
+            "content": "Hello! What ingredients do you have today? You can type them out or attach a photo of your fridge!"
         }
     ]
 
@@ -149,7 +121,7 @@ if "messages" not in st.session_state:
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if "image" in msg and msg["image"]:
-            st.image(msg["image"], width=240)
+            st.image(msg["image"], width=260)
         st.markdown(msg["content"])
         if "recipes" in msg:
             tabs = st.tabs([f"Option {i+1}: {r.get('title', 'Recipe')}" for i, r in enumerate(msg["recipes"])])
@@ -175,73 +147,70 @@ for msg in st.session_state.messages:
                         for step_num, s in enumerate(r.get("instructions", []), 1):
                             st.write(f"**{step_num}.** {s}")
 
-# --- 6. Input Section (Integrated Bar) ---
-col_upload, col_input = st.columns([1, 4])
-with col_upload:
-    uploaded_photo = st.file_uploader("📷 Photo", type=["jpg", "jpeg", "png"], key="chat_photo", label_visibility="collapsed")
-with col_input:
-    user_input = st.chat_input("Ask for a recipe or list your ingredients...")
+# --- 5. Unified Chat Input ---
+uploaded_photo = st.file_uploader("📷 Optional: Attach fridge photo before sending", type=["jpg", "jpeg", "png"], key="chat_photo")
+user_input = st.chat_input("Ask for a recipe or type your ingredients...")
 
-# Process Input
 if user_input or uploaded_photo:
     if not api_key:
         st.error("Please add your Groq API key in secrets or sidebar.")
     else:
         img_obj = Image.open(uploaded_photo) if uploaded_photo else None
-        input_text = user_input if user_input else "What recipes can I make with these ingredients?"
-        
-        # 1. Save user prompt to state and render it
-        user_msg = {"role": "user", "content": input_text, "image": img_obj}
+        user_msg = {"role": "user", "content": user_input if user_input else "What can I cook with these ingredients?", "image": img_obj}
         st.session_state.messages.append(user_msg)
         
         with st.chat_message("user"):
             if img_obj:
-                st.image(img_obj, width=240)
-            st.markdown(input_text)
+                st.image(img_obj, width=260)
+            if user_input:
+                st.markdown(user_input)
 
-        # 2. Assistant Response Processing
         with st.chat_message("assistant"):
             with st.spinner("Chef AI is cooking up recipes..."):
                 try:
                     client = Groq(api_key=api_key)
                     
+                    # 1. Fetch available active models dynamically
+                    available_models = [m.id for m in client.models.list().data]
+                    if img_obj:
+                        vision_candidates = [m for m in available_models if "vision" in m]
+                        selected_model = vision_candidates[0] if vision_candidates else available_models[0]
+                    else:
+                        selected_model = "llama-3.3-70b-versatile" if "llama-3.3-70b-versatile" in available_models else available_models[0]
+
+                    # 2. Build Prompt safely with string formatting
                     prompt_text = (
-                        f"You are an expert chef. Analyze the request, optional image, and cookbook context.\n"
+                        f"You are an expert chef. Analyze the user request, image (if provided), and cookbook context.\n"
                         f"Generate 3 distinct recipes.\n\n"
-                        f"User Request: {input_text}\n"
+                        f"User Message: {user_input}\n"
                         f"Dietary Restrictions: {', '.join(dietary_pref) if dietary_pref else 'None'}\n"
                         f"Skill Level: {skill_level}\n"
-                        f"Cookbook Context: {pdf_text_context[:3000] if pdf_text_context else 'None'}\n\n"
-                        f"Return ONLY valid JSON with structure:\n"
-                        f'{{\n  "recipes": [\n    {{\n'
+                        f"Cookbook Text Context: {pdf_text_context[:4000] if pdf_text_context else 'None'}\n\n"
+                        f"Return ONLY valid JSON matching this structure:\n"
+                        f"{{\n"
+                        f'  "recipes": [\n'
+                        f'    {{\n'
                         f'      "title": "Recipe Name",\n'
                         f'      "cook_time": "20 mins",\n'
                         f'      "difficulty": "Easy",\n'
-                        f'      "ingredients_used": ["Item 1"],\n'
+                        f'      "ingredients_used": ["Item 1", "Item 2"],\n'
                         f'      "missing_pantry_items": ["Salt"],\n'
-                        f'      "instructions": ["Step 1..."]\n'
-                        f'    }}\n  ]\n}}'
+                        f'      "instructions": ["Step 1...", "Step 2..."]\n'
+                        f'    }}\n'
+                        f'  ]\n'
+                        f"}}\n"
                     )
 
-                    # Explicitly target compatible vision or text models based on whether an image exists
+                    content_payload = []
                     if img_obj:
-                        selected_model = "llama-3.2-11b-vision-preview"
                         base64_image = encode_image_to_base64(img_obj)
-                        content_payload = [
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
-                            },
-                            {
-                                "type": "text",
-                                "text": prompt_text
-                            }
-                        ]
-                    else:
-                        selected_model = "llama-3.3-70b-versatile"
-                        content_payload = prompt_text  # Send string payload directly for pure text requests
+                        content_payload.append({
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                        })
+                    content_payload.append({"type": "text", "text": prompt_text})
 
-                    # API Execution
+                    # 3. Call Groq API
                     response = client.chat.completions.create(
                         model=selected_model,
                         messages=[{"role": "user", "content": content_payload}],
@@ -256,7 +225,7 @@ if user_input or uploaded_photo:
                     assistant_text = "Here are 3 custom recipes I created for you based on your request:"
                     st.markdown(assistant_text)
 
-                    # Display formatted tabs directly
+                    # Display formatted tabs
                     tabs = st.tabs([f"Option {i+1}: {r.get('title', 'Recipe')}" for i, r in enumerate(recipes_data)])
                     for idx, tab in enumerate(tabs):
                         r = recipes_data[idx]
@@ -280,7 +249,7 @@ if user_input or uploaded_photo:
                                 for step_num, s in enumerate(r.get("instructions", []), 1):
                                     st.write(f"**{step_num}.** {s}")
 
-                    # Save response to history
+                    # Save to state
                     st.session_state.messages.append({
                         "role": "assistant",
                         "content": assistant_text,
