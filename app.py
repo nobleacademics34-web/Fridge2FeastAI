@@ -98,24 +98,51 @@ def encode_image_to_base64(image: Image.Image) -> str:
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
 def get_active_groq_model(client: Groq, vision_required: bool = False) -> str:
-    """Queries active generative chat models to prevent 400/404 classification model errors."""
+    """Dynamically matches supported Groq models to prevent 404/model_not_found errors."""
+    
+    # Priority ordered lists of active supported models
+    PREFERRED_VISION_MODELS = [
+        "llama-3.2-11b-vision-instruct",
+        "llama-3.2-90b-vision-instruct"
+    ]
+    
+    PREFERRED_TEXT_MODELS = [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it"
+    ]
+
     try:
         available_models = [m.id for m in client.models.list().data]
         
-        # Filter out audio, whisper, guard, or embedding/classification models
-        chat_models = [
-            m for m in available_models 
-            if not any(x in m.lower() for x in ["whisper", "guard", "embed", "moderation", "distil"])
-        ]
-
         if vision_required:
-            vision_models = [m for m in chat_models if "vision" in m.lower() or "llava" in m.lower()]
-            return vision_models[0] if vision_models else "llama-3.2-11b-vision-instruct"
+            for model in PREFERRED_VISION_MODELS:
+                if model in available_models:
+                    return model
+            # Fallback for dynamic/newer vision models in API response
+            vision_matches = [m for m in available_models if "vision" in m.lower()]
+            if vision_matches:
+                return vision_matches[0]
+            return PREFERRED_VISION_MODELS[0]
         else:
-            text_models = [m for m in chat_models if "llama" in m.lower() or "mixtral" in m.lower() or "gemma" in m.lower()]
-            return text_models[0] if text_models else "llama-3.3-70b-versatile"
+            for model in PREFERRED_TEXT_MODELS:
+                if model in available_models:
+                    return model
+            # Fallback for dynamic/newer text models in API response
+            text_matches = [
+                m for m in available_models 
+                if ("llama" in m.lower() or "mixtral" in m.lower()) 
+                and "vision" not in m.lower() 
+                and "whisper" not in m.lower()
+                and "guard" not in m.lower()
+            ]
+            if text_matches:
+                return text_matches[0]
+            return PREFERRED_TEXT_MODELS[0]
+            
     except Exception:
-        return "llama-3.2-11b-vision-instruct" if vision_required else "llama-3.3-70b-versatile"
+        return PREFERRED_VISION_MODELS[0] if vision_required else PREFERRED_TEXT_MODELS[0]
 
 # --- 4. Sidebar ---
 with st.sidebar:
@@ -225,7 +252,6 @@ if user_input or uploaded_photo:
                     f'    }}\n  ]\n}}'
                 )
 
-                # Format payload into a single user message
                 if img_obj:
                     base64_image = encode_image_to_base64(img_obj)
                     content_payload = [
@@ -235,7 +261,6 @@ if user_input or uploaded_photo:
                 else:
                     content_payload = prompt_text
 
-                # Strict Single User Message Call
                 response = client.chat.completions.create(
                     model=selected_model,
                     messages=[{"role": "user", "content": content_payload}],
@@ -250,7 +275,7 @@ if user_input or uploaded_photo:
                 # 3. Save assistant reply to session state
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": "Here are 3 custom recipes I created for you based on your request:",
+                    "content": f"Here are 3 custom recipes I created for you using `{selected_model}`:",
                     "recipes": recipes_data
                 })
 
@@ -260,5 +285,5 @@ if user_input or uploaded_photo:
                     "content": f"Sorry, I encountered an error: {e}"
                 })
 
-        # 4. Rerun after storing messages
+        # 4. Rerun after storing both User & Assistant messages
         st.rerun()
