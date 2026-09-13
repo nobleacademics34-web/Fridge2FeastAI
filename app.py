@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. Custom CSS (Theme: Warm Beige & Animated Kitchen Doodles) ---
+# --- 2. Custom CSS (Theme: Warm Beige & Integrated Pin Icon inside Chat Bar) ---
 st.html("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
@@ -70,35 +70,59 @@ st.html("""
         transition: transform 0.2s ease;
     }
 
-    /* --- ATTACHMENT ICON BUTTON CSS OVERRIDE --- */
-    div[data-testid="stFileUploader"] {
-        width: 50px !important;
-        min-width: 50px !important;
+    /* --- INTEGRATED PIN ICON INSIDE SEARCH BAR --- */
+    /* Container positioning wrapper */
+    div[data-testid="stColumn"]:has(div[data-testid="stFileUploader"]) {
+        position: relative !important;
+        z-index: 999 !important;
     }
+
+    /* Shift chat input container relative position and add left margin for icon */
+    div[data-testid="stChatInput"] {
+        position: relative !important;
+    }
+
+    div[data-testid="stChatInput"] textarea {
+        padding-left: 48px !important;
+    }
+
+    /* Overlay file uploader over left edge of input bar */
+    div[data-testid="stFileUploader"] {
+        position: absolute !important;
+        left: 12px !important;
+        bottom: 8px !important;
+        z-index: 1000 !important;
+        width: 36px !important;
+        min-width: 36px !important;
+        height: 36px !important;
+    }
+
     div[data-testid="stFileUploader"] section {
         padding: 0 !important;
-        background: #FFFFFF !important;
-        border: 1.5px solid #E8DEC8 !important;
-        border-radius: 12px !important;
-        height: 48px !important;
+        background: transparent !important;
+        border: none !important;
+        height: 36px !important;
+        width: 36px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         cursor: pointer !important;
-        transition: all 0.2s ease !important;
     }
+
     div[data-testid="stFileUploader"] section:hover {
-        border-color: #D97745 !important;
-        background: #F8F4EE !important;
+        background: rgba(217, 119, 69, 0.1) !important;
+        border-radius: 50% !important;
     }
+
     div[data-testid="stFileUploader"] section span, 
     div[data-testid="stFileUploader"] section small, 
     div[data-testid="stFileUploader"] section div {
         display: none !important;
     }
+
     div[data-testid="stFileUploader"] section::after {
-        content: "📎";
-        font-size: 20px;
+        content: "📌";
+        font-size: 18px;
         display: block;
     }
 
@@ -114,7 +138,7 @@ st.html("""
 """)
 
 st.title("🍳 Fridge2Feast AI")
-st.caption("Your culinary companion! Type your ingredients or click the attachment icon to upload a photo.")
+st.caption("Your culinary companion! Type your ingredients or click the pin icon inside the chat bar to upload a photo.")
 
 # --- 3. Schema & Helpers ---
 class Recipe(BaseModel):
@@ -166,7 +190,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = [
         {
             "role": "assistant", 
-            "content": "Hello! What ingredients do you have today? Type them below or attach a photo using the paperclip button!"
+            "content": "Hello! What ingredients do you have today? Type them below or click the pin icon inside the input bar to attach a photo!"
         }
     ]
 
@@ -200,7 +224,7 @@ for msg in st.session_state.messages:
                             st.write(f"**{step_num}.** {s}")
 
 # --- 6. Input Section ---
-col_upload, col_input = st.columns([0.15, 0.85])
+col_upload, col_input = st.columns([0.01, 0.99])
 with col_upload:
     uploaded_photo = st.file_uploader("", type=["jpg", "jpeg", "png"], key="chat_photo", label_visibility="collapsed")
 with col_input:
@@ -251,7 +275,6 @@ if user_input or uploaded_photo:
                             m for m in active_models 
                             if "vision" in m and "preview" not in m
                         ]
-                        # Fallback order if no non-preview models are found
                         selected_model = vision_models[0] if vision_models else "llama-3.2-90b-vision-instruct"
                         
                         base64_image = encode_image_to_base64(img_obj)
