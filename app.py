@@ -367,7 +367,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = [
         {
             "role": "assistant",
-            "content": "Hello! What ingredients do you have today? Type them out, or tap the 📎 icon in the message bar to attach a fridge photo!"
+            "content": "Hello! What ingredients do you have today? Type them out, or tap the + icon in the message bar to attach a fridge photo!"
         }
     ]
 
