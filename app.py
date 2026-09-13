@@ -223,6 +223,29 @@ class Recipe(BaseModel):
 # so the "pick a fallback model" logic never accidentally selects one of these.
 _NON_CHAT_MODEL_HINTS = ("whisper", "tts", "guard", "moderation", "embed")
 
+# Groq's vision-capable lineup changes over time and model IDs don't
+# reliably contain the word "vision" (current models are qwen/qwen3.6-27b
+# and qwen/qwen3.8-27b — the old llama-3.2-*-vision models are retired).
+# Matching on "vision" alone silently picks a text-only model, which then
+# rejects image input with a confusing 400 "content must be a string" error.
+# Maintain an explicit priority list, with a heuristic fallback in case
+# Groq adds a new multimodal model before this list is updated.
+_KNOWN_VISION_MODEL_PRIORITY = [
+    "qwen/qwen3.6-27b",
+    "qwen/qwen3.8-27b",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "meta-llama/llama-4-maverick-17b-128e-instruct",
+]
+_VISION_MODEL_HINTS = ("vision", "scout", "maverick", "qwen3.6", "qwen3.8", "multimodal")
+
+
+def pick_vision_model(chat_capable_models: list[str]):
+    for candidate in _KNOWN_VISION_MODEL_PRIORITY:
+        if candidate in chat_capable_models:
+            return candidate
+    heuristic_matches = [m for m in chat_capable_models if any(h in m.lower() for h in _VISION_MODEL_HINTS)]
+    return heuristic_matches[0] if heuristic_matches else None
+
 
 def encode_image_to_base64(image: Image.Image, max_dim: int = 1024, quality: int = 85) -> str:
     """Downscale + JPEG-encode an image for the vision API call.
@@ -446,8 +469,13 @@ if has_submission:
                         raise RuntimeError("No chat-capable Groq models are available for this API key.")
 
                     if img_obj:
-                        vision_candidates = [m for m in chat_capable if "vision" in m.lower()]
-                        selected_model = vision_candidates[0] if vision_candidates else chat_capable[0]
+                        selected_model = pick_vision_model(chat_capable)
+                        if not selected_model:
+                            raise RuntimeError(
+                                "No vision-capable model is currently available on this Groq "
+                                "account to analyze images. Try again with text only, or check "
+                                "console.groq.com/docs/vision for the current model names."
+                            )
                     else:
                         selected_model = "llama-3.3-70b-versatile" if "llama-3.3-70b-versatile" in chat_capable else chat_capable[0]
 
